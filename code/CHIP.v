@@ -48,8 +48,91 @@ module CHIP(clk,
         .q1(rs1_data),                       //
         .q2(rs2_data));                      //
     //---------------------------------------//
+
+
+    // ===== variables =========
+
+    // pc
+    wire [31:0]     pc_add4;
+
+    // control unit
+    wire 			ctrl_beq, ctrl_jal, ctrl_jalr;	// for pc nxt, set the 1 for the according instruction
+	wire [2:0]		ctrl_regSrc;	// reg write back (there're six sources)
+	wire [1:0]		ctrl_aluOp;		//
+	wire [1:0]		ctrl_aluSrc;	// for input A and B, 0: rs_data, 1: special case
+	wire 			ctrl_mulValid;
+
+    // ImmGen
+    wire [31:0]     immGen_res;
+
+    // ALU
+	wire [31:0]		alu_A, alu_B;
+    wire [31:0]     alu_res;
+    wire            alu_zero;
+
+    // Shift
+	wire [31:0]		shift_res
+
+    // MulDiv
+    wire [31:0]     mul_res;
+    wire            mul_done;
+
+
+    // ===== output assignments =======
+    assign mem_addr_I = PC;
+	assign mem_addr_D = alu_res;
+	assign mem_wdata_D = rs2_data;
+	// assign mem_wen_D =
+	// ================================
     
-    // Todo: any combinational/sequential circuit
+
+    // Todo: PC logics
+    wire [31:0]     pc_jump;
+	wire			pc_jump_sel;
+
+    assign pc_add4 = pc + 32'd4;
+    assign pc_jump = pc + {immGen_res[30:0], 1'b0};
+	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero )
+    assign PC_nxt = ctrl_jalr ? alu_res : ( pc_jump_sel ? pc_jump : ( mul_done ? PC : pc_add4 )  );
+
+    // Todo: Control Unit
+    always @(*) begin
+        
+    end
+
+    // Todo: ImmGen
+    always @(*) begin
+        
+    end
+
+    // Todo: ALU
+	assign alu_A = ctrl_aluSrc[1] ? PC : rs1_data;
+	assign alu_B = ctrl_aluSrc[0] ? immGen_res : rs2_data;
+    always @(*) begin
+        
+    end
+
+    // Todo: Shift
+    always @(*) begin
+        
+    end
+
+    // Todo: mul
+	multDiv mul(
+		.clk(clk),
+		.rst_n(rst_n),
+		.valid(ctrl_mulValid),
+		.ready(mul_done),
+		.mode(1'b0),
+		.in_A(rs1_data),
+		.in_B(rs2_data),
+		.out(mul_res)
+	);
+
+	// Todo: reg (write back)
+
+
+
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -108,6 +191,88 @@ module reg_file(clk, rst_n, wen, a1, a2, aw, d, q1, q2);
 endmodule
 
 module multDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
-    // Todo: your HW3
+
+    // Definition of ports
+    input         clk, rst_n;
+    input         valid, mode; // mode: 0: multu, 1: divu
+    input  [31:0] in_A, in_B;
+    output [63:0] out;
+    output ready;
+
+    // Definition of states
+    parameter S_IDLE = 2'b00;
+    parameter S_MULT = 2'b01;
+    parameter S_DIVI = 2'b10;
+    parameter S_DONE = 2'b11;
+
+    // Todo: Wire and reg
+    reg  [ 1:0] state_r, state_w;
+    reg  [ 4:0] cnt_r, cnt_w;
+    reg  [63:0] shreg_r, shreg_w;
+    reg  [31:0] alu_in_r, alu_in_w;
+    wire  [32:0] alu_out;
+
+    // Todo 5: wire assignments
+    assign out = (state_r == S_DONE) ? shreg_r : 64'b0;
+    assign ready = (state_r == S_MULT || start_r == DIVI) ? 1'b0 : 1'b1;
+    
+    // Combinational always block
+    // State machine & counter
+    always @(*) begin
+        state_w = state_r;
+        cnt_w = cnt_r;
+        case(state_r)
+            S_IDLE: begin
+                if (valid) begin
+                    state_w = mode ? S_DIVI : S_MULT;
+                    cnt_w = 31;
+                end
+            end
+            S_MULT, S_DIVI: begin
+                state_w = (cnt_r == 0) ? S_DONE : state_w;
+                cnt_w = (cnt_r == 0) ? cnt_w : cnt_r - 1;
+            end
+            S_DONE: state_w = S_IDLE;
+        endcase
+    end
+    
+    // ALU input
+    always @(*) begin
+        alu_in_w = alu_in_r;
+        case(state_r)
+            S_IDLE: begin
+                if (valid) alu_in_w = in_B;
+            end
+            S_DONE: alu_in_w = 0;
+        endcase
+    end
+    // ALU output
+    assign alu_out = (state_r == S_MULT) ? shreg_r[63:32] + alu_in_r : shreg_r[62:31] - alu_in_r;
+    
+    // Shift register
+    always @(*) begin
+        shreg_w = shreg_r;
+        case(state_r)
+            S_IDLE: if (valid) shreg_w = mode ? {32'b0, in_A} : {32'b0, in_A};
+            S_MULT: shreg_w = shreg_r[0] ? {alu_out, shreg_r[31:1]} : (shreg_r >> 1);
+            S_DIVI: shreg_w = alu_out[32] ?  (shreg_r << 1) : {alu_out[31:0], shreg_r[30:0], 1'b1};
+        endcase
+    end
+
+    // Sequential always block
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            state_r <= S_IDLE;
+            cnt_r <= 0;
+            shreg_r <= 0;
+            alu_in_r <= 0;
+        end
+        else begin
+            state_r <= state_w;
+            cnt_r <= cnt_w;
+            shreg_r <= shreg_w;
+            alu_in_r <= alu_in_w;
+        end
+    end
 
 endmodule
