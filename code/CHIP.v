@@ -75,18 +75,19 @@ module CHIP(clk,
 	wire [1:0]		ctrl_aluOp;		//
 	wire [1:0]		ctrl_aluSrc;	// for input A and B, 0: rs_data, 1: special case
 	wire 			ctrl_mulValid;
+	wire			ctrl_mem_wen_D;
 
     // ImmGen
     wire [31:0]     immGen_res;     // not shifted for pc jump (in current design)
 
     // ALU
 	wire [31:0]		alu_A, alu_B;
-    wire [31:0]     alu_res;
+    wire [31:0]     alu_out;
     wire            alu_zero;
 	wire [2:0]		alu_input;
 
     // Shift
-	wire [31:0]		shift_res
+	wire [31:0]		shift_res;
 
     // MulDiv
     wire [31:0]     mul_res;
@@ -95,9 +96,9 @@ module CHIP(clk,
 
     // ===== output assignments =======
     assign mem_addr_I = PC;
-	assign mem_addr_D = alu_res;
+	assign mem_addr_D = alu_out;
 	assign mem_wdata_D = rs2_data;
-	// assign mem_wen_D =
+	assign mem_wen_D = ctrl_mem_wen_D;
 	// ================================
     
 
@@ -105,13 +106,13 @@ module CHIP(clk,
     wire [31:0]     pc_jump;
 	wire			pc_jump_sel;
 
-    assign pc_jump = pc + immGen_res;
-	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero )
-    assign PC_nxt = ctrl_jalr ? alu_res : ( pc_jump_sel ? pc_jump : ( mul_done ? PC : PC + 32'd4 )  );
+    assign pc_jump = PC + immGen_res;
+	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero );
+    assign PC_nxt = ctrl_jalr ? alu_out : ( pc_jump_sel ? pc_jump : ( mul_done ? PC : PC + 32'd4 )  );
 
     // Control Unit
     always @(*) begin
-		mem_wen_D = 1'b0;
+		ctrl_mem_wen_D = 1'b0;
 		ctrl_regSrc = 3'b000;
 		ctrl_aluOp = 2'b00;
 		ctrl_aluSrc = 2'b00;
@@ -196,7 +197,7 @@ module CHIP(clk,
 
 			// SW
 			OP_SW: begin
-				mem_wen_D = 1'b1;
+				ctrl_mem_wen_D = 1'b1;
 				ctrl_aluSrc = 2'b01;
 			end
 
@@ -210,22 +211,22 @@ module CHIP(clk,
 			OP_AUIPC:	immGen_res = {ins[31:12], 12'b0};
 			OP_JAL:		immGen_res = { {11{ins[31]}}, ins[31], ins[19:12], ins[20], ins[30:21], 1'b0};
 			OP_SW:		immGen_res = { {20{ins[31]}}, ins[31:25], ins[11:7] };
-			OP_BEQ:		immGen_res = { {19{ins[31}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
+			OP_BEQ:		immGen_res = { {19{ins[31]}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
 			OP_ADDI, OP_SLTI, OP_LW, OP_JALR: immGen_res = { {20{ins[31]}}, ins[31:20] };
-			default:	immGen_res = '0;
+			default:	immGen_res = 32'b0;
 		endcase
     end
 	
 	// ALU control
 	always @(*) begin
+
+		// Default: 
+		// ALU: addition
+		// multiplier: pause
+		alu_input = 3'b010;
+		ctrl_mulValid = 1'b0;
+
 		case ( ctrl_aluOp )
-			
-			// Default: 
-			// ALU: addition
-			// multiplier: pause
-			
-			alu_input = 3'b010;
-			ctrl_mulValid = 1'b0;
 
 			// Always subtract
 			2'b01: alu_input = 3'b110;
@@ -266,7 +267,7 @@ module CHIP(clk,
 
 			// default output: 0
 			default:
-				alu_out = '0;
+				alu_out = 32'b0;
 
 		endcase
 	end
@@ -300,9 +301,9 @@ module CHIP(clk,
 	localparam	RegSrc_shift =	3'b101;
 	always @(*) begin
 		case(ctrl_regSrc)
-			default: rd_data = '0;
-			RegSrc_ALU: rd_data = alu_res;
-			RegSrc_Sign: rd_data = {31'b0, alu_res[31]};
+			default: rd_data = 32'b0;
+			RegSrc_ALU: rd_data = alu_out;
+			RegSrc_Sign: rd_data = {31'b0, alu_out[31]};
 			RegSrc_mul: rd_data = mul_res;
 			RegSrc_rdata_D: rd_data = mem_rdata_D;
 			RegSrc_pc_4: rd_data = PC + 4;
