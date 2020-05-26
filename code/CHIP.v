@@ -110,6 +110,8 @@ module CHIP(clk,
 
     // Todo: Control Unit
     always @(*) begin
+		if () 
+		else mem_wen_D = 1'b0;
         
     end
 
