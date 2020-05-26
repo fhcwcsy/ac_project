@@ -121,9 +121,9 @@ module CHIP(clk,
 			OP_AUIPC:	immGen_res = {ins[31:12], 12'b0};
 			OP_JAL:		immGen_res = { {11{ins[31]}}, ins[31], ins[19:12], ins[20], ins[30:21], 1'b0};
 			OP_SW:		immGen_res = { {20{ins[31]}}, ins[31:25], ins[11:7] };
-			OP_BEQ:		immGen_res = {};
-			OP_ADDI, OP_SLTI, OP_LW, OP_JALR: immGen_res = {};
-			default:	immGen_res = 0
+			OP_BEQ:		immGen_res = { {19{ins[31}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
+			OP_ADDI, OP_SLTI, OP_LW, OP_JALR: immGen_res = { {20{ins[31]}}, ins[31:20] };
+			default:	immGen_res = '0;
 		endcase
     end
 
