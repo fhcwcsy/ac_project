@@ -218,9 +218,6 @@ module CHIP(clk,
     // Todo: ALU
 	assign alu_A = ctrl_aluSrc[1] ? PC : rs1_data;
 	assign alu_B = ctrl_aluSrc[0] ? immGen_res : rs2_data;
-    always @(*) begin
-        
-	end
 
     // Todo: Shift
 	wire [4:0] shift_amt;
