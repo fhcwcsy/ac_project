@@ -241,6 +241,23 @@ module CHIP(clk,
 	);
 
 	// Todo: reg (write back)
+	localparam	RegSrc_ALU =	3'b000;
+	localparam	RegSrc_Sign =	3'b001;
+	localparam	RegSrc_mul =	3'b010;
+	localparam	RegSrc_rdata_D = 3'b011;
+	localparam	RegSrc_pc_4 =	3'b100;
+	localparam	RegSrc_shift =	3'b101;
+	always @(*) begin
+		case(ctrl_regSrc)
+			default: rd_data = '0;
+			RegSrc_ALU: rd_data = alu_res;
+			RegSrc_Sign: rd_data = {31'b0, alu_res[31]};
+			RegSrc_mul: rd_data = mul_res;
+			RegSrc_rdata_D: rd_data = mem_rdata_D;
+			RegSrc_pc_4: rd_data = PC + 4;
+			RegSrc_shift: rd_data = shift_res;
+		endcase
+	end
 
 
 
