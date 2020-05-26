@@ -83,6 +83,7 @@ module CHIP(clk,
 	wire [31:0]		alu_A, alu_B;
     wire [31:0]     alu_res;
     wire            alu_zero;
+	wire [2:0]		alu_input;
 
     // Shift
 	wire [31:0]		shift_res
