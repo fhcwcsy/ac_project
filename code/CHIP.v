@@ -53,7 +53,6 @@ module CHIP(clk,
     // ===== variables =========
 
     // pc
-    wire [31:0]     pc_add4;
 
     // control unit
     wire 			ctrl_beq, ctrl_jal, ctrl_jalr;	// for pc nxt, set the 1 for the according instruction
@@ -63,7 +62,7 @@ module CHIP(clk,
 	wire 			ctrl_mulValid;
 
     // ImmGen
-    wire [31:0]     immGen_res;
+    wire [31:0]     immGen_res;     // not shifted for pc jump (in current design)
 
     // ALU
 	wire [31:0]		alu_A, alu_B;
@@ -90,10 +89,9 @@ module CHIP(clk,
     wire [31:0]     pc_jump;
 	wire			pc_jump_sel;
 
-    assign pc_add4 = pc + 32'd4;
     assign pc_jump = pc + {immGen_res[30:0], 1'b0};
 	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero )
-    assign PC_nxt = ctrl_jalr ? alu_res : ( pc_jump_sel ? pc_jump : ( mul_done ? PC : pc_add4 )  );
+    assign PC_nxt = ctrl_jalr ? alu_res : ( pc_jump_sel ? pc_jump : ( mul_done ? PC : PC + 32'd4 )  );
 
     // Todo: Control Unit
     always @(*) begin
