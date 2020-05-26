@@ -130,12 +130,14 @@ module CHIP(clk,
 	assign alu_B = ctrl_aluSrc[0] ? immGen_res : rs2_data;
     always @(*) begin
         
-    end
+	end
 
     // Todo: Shift
-    always @(*) begin
-        
-    end
+	wire [4:0] shift_amt;
+	assign shift_amt = ins[24:20];
+	wire [93:0] shift_tmp;
+	assign shift_tmp = { {31{rs1_data[31]}}, rs1_data, 31'b0 };
+	assign shift_res = ins[30] ? shift_tmp[(62+shift_amt) -: 32] : shift_tmp[(62-shift_amt) -: 32];
 
     // Todo: mul
 	multDiv mul(
