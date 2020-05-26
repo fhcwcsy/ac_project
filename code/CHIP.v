@@ -33,8 +33,6 @@ module CHIP(clk,
     wire   [31:0] rd_data     ;              //
     //---------------------------------------//
 
-    // Todo: other wire/reg
-
     //---------------------------------------//
     // Do not modify this part!!!            //
     reg_file reg0(                           //
@@ -49,8 +47,25 @@ module CHIP(clk,
         .q2(rs2_data));                      //
     //---------------------------------------//
 
+	// ===== params =====
+	localparam OP_LW = 		7'b0000011;
+	localparam OP_ADDI =	7'b0010011;
+	localparam OP_SLTI = 	7'b0010011;
+	localparam OP_SLLI = 	7'b0010011;
+	localparam OP_SRAI = 	7'b0010011;
+	localparam OP_AUIPC =	7'b0010111;
+	localparam OP_SW =		7'b0100011;
+	localparam OP_ADD =		7'b0110011;
+	localparam OP_SUB =		7'b0110011;
+	localparam OP_MUL =		7'b0110011;
+	localparam OP_BEQ =		7'b1100011;
+	localparam OP_JALR =	7'b1100111;
+	localparam OP_JAL =		7'b1101111;
 
     // ===== variables =========
+
+	wire [31:0] ins;
+	assign ins = mem_rdata_I;
 
     // pc
 
@@ -100,7 +115,14 @@ module CHIP(clk,
 
     // Todo: ImmGen
     always @(*) begin
-        
+		case( ins[6:0] )
+			OP_AUIPC:	immGen_res = {ins[31:12], 12'b0};
+			OP_JAL:		immGen_res = { {11{ins[31]}}, ins[31], ins[19:12], ins[20], ins[30:21], 1'b0};
+			OP_SW:		immGen_res = { {20{ins[31]}}, ins[31:25], ins[11:7] };
+			OP_BEQ:		immGen_res = {};
+			OP_ADDI, OP_SLTI, OP_LW, OP_JALR: immGen_res = {};
+			default:	immGen_res = 0
+		endcase
     end
 
     // Todo: ALU
