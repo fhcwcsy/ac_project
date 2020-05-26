@@ -110,8 +110,87 @@ module CHIP(clk,
 
     // Todo: Control Unit
     always @(*) begin
-		if () 
-		else mem_wen_D = 1'b0;
+		mem_wen_D = 1'b0;
+		ctrl_regSrc = 3'b000;
+		ctrl_aluOp = 2'b00;
+		ctrl_aluSrc = 2'b00;
+		regWrite = 0;
+
+		case ( ins[6:0] )
+
+			// ADD
+			OP_ADD: begin
+				ctrl_aluOp = 2'b10;
+				regWrite = 1'b1;
+			end
+
+			// ADDI
+			OP_ADDI: begin
+				ctrl_aluSrc = 2'b01;
+				regWrite = 1'b1;
+			end
+
+			// AUIPC
+			OP_AUIPC: begin
+				ctrl_aluSrc = 2'b11;
+				regWrite = 1'b1;
+			end
+
+			// BEQ
+			OP_BEQ: ctrl_aluOp = 2'b01;
+
+			// JAL
+			// default values
+
+			// JALR
+			OP_JALR: ctrl_aluSrc = 2'b01;
+
+			// LW
+			OP_LW: begin
+				ctrl_regSrc = 3'b011;
+				ctrl_aluSrc = 2'b01;
+				regWrite = 1'b1;
+			end
+
+			// MUL
+			OP_MUL: begin
+				ctrl_regSrc = 3'b010;
+				regWrite = 1'b1;
+			end
+
+			// SLLI
+			OP_SLLI: begin
+				ctrl_regSrc = 3'b101;
+				regWrite = 1'b1;
+			end
+			
+			// SLTI
+			OP_SLTI: begin
+				ctrl_regSrc = 3'b001;
+				ctrl_aluOp = 2'b01;
+				ctrl_aluSrc = 2'b01;
+				regWrite = 1'b1;
+			end
+
+			// SRAI
+			OP_SRAI: begin
+				ctrl_regSrc = 3'b101;
+				regWrite = 1'b1;
+			end
+
+			// SUB
+			OP_SUB: begin
+				ctrl_aluOp = 2'b10;
+				regWrite = 1'b1;
+			end
+
+			// SW
+			OP_SW: begin
+				mem_wen_D = 1'b1;
+				ctrl_aluSrc = 2'b01;
+			end
+
+		endcase
         
     end
 
