@@ -114,7 +114,10 @@ module CHIP(clk,
 		ctrl_regSrc = 3'b000;
 		ctrl_aluOp = 2'b00;
 		ctrl_aluSrc = 2'b00;
-		regWrite = 0;
+		regWrite = 1'b0;
+		ctrl_beq = 1'b0;
+		ctrl_jal = 1'b0;
+		ctrl_jalr = 1'b0;
 
 		case ( ins[6:0] )
 
@@ -137,13 +140,19 @@ module CHIP(clk,
 			end
 
 			// BEQ
-			OP_BEQ: ctrl_aluOp = 2'b01;
+			OP_BEQ: begin
+				ctrl_aluOp = 2'b01;
+				ctrl_beq = 1'b1;
+			end
 
 			// JAL
-			// default values
+			OP_JAL: ctrl_jal = 1'b1;
 
 			// JALR
-			OP_JALR: ctrl_aluSrc = 2'b01;
+			OP_JALR: begin
+				ctrl_aluSrc = 2'b01;
+				ctrl_jalr = 1'b1;
+			end
 
 			// LW
 			OP_LW: begin
