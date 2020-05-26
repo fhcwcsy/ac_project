@@ -71,7 +71,7 @@ module CHIP(clk,
 
     // control unit
     reg 			ctrl_beq, ctrl_jal, ctrl_jalr;	// for pc nxt, set the 1 for the according instruction
-	reg [2:0]		ctrl_regSrc;	// reg write back (there're six sources)
+	reg [1:0]		ctrl_regSrc;	// reg write back (there're six sources)
 	reg [1:0]		ctrl_aluOp;		//
 	reg [1:0]		ctrl_aluSrc;	// for input A and B, 0: rs_data, 1: special case
 	reg 			ctrl_mulValid;
@@ -85,6 +85,7 @@ module CHIP(clk,
     reg [31:0]     alu_out;
     wire            alu_zero;
 	reg [2:0]		alu_input;
+	reg [1:0]		alu_regSrc;
 
     // Shift
 	wire [31:0]		shift_res;
