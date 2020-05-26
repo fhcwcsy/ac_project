@@ -108,7 +108,7 @@ module CHIP(clk,
 	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero )
     assign PC_nxt = ctrl_jalr ? alu_res : ( pc_jump_sel ? pc_jump : ( mul_done ? PC : PC + 32'd4 )  );
 
-    // Todo: Control Unit
+    // Control Unit
     always @(*) begin
 		mem_wen_D = 1'b0;
 		ctrl_regSrc = 3'b000;
