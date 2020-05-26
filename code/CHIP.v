@@ -215,10 +215,61 @@ module CHIP(clk,
 			default:	immGen_res = '0;
 		endcase
     end
+	
+	// ALU control
+	always @(*) begin
+		case ( ctrl_aluOp )
+			
+			// Default: 
+			// ALU: addition
+			// multiplier: pause
+			
+			alu_input = 3'b010;
+			ctrl_mulValid = 1'b0;
 
-    // Todo: ALU
+			// Always subtract
+			2'b01: alu_input = 3'b110;
+
+			// R type
+			2'b10: begin
+				case ( ins[31:25] )
+
+					// Addition: defined in default values
+
+					// Multiplication
+					7'b0000001: ctrl_mulValid = 1'b1;
+
+					// Subtraction
+					7'b0100000: alu_input = 3'b110;
+
+				endcase
+
+			end
+		endcase
+	end
+
+	// ALU
+
+	// ALU input
 	assign alu_A = ctrl_aluSrc[1] ? PC : rs1_data;
 	assign alu_B = ctrl_aluSrc[0] ? immGen_res : rs2_data;
+	
+	// AlU output
+	always @(*) begin
+		case (alu_input)
+
+			// Addition
+			3'b010: alu_out = alu_A + alu_B;
+
+			// Subtraction
+			3'b110: alu_out = alu_A + alu_B;
+
+			// default output: 0
+			default:
+				alu_out = '0;
+
+		endcase
+	end
 	
 
     // Todo: Shift
