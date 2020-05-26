@@ -311,12 +311,14 @@ module CHIP(clk,
 	always @(*) begin
 		case(ctrl_regSrc)
 			default: rd_data = 32'b0;
-			RegSrc_ALU: rd_data = alu_out;
-			RegSrc_Sign: rd_data = {31'b0, alu_out[31]};
-			RegSrc_mul: rd_data = mul_res;
-			RegSrc_rdata_D: rd_data = mem_rdata_D;
-			RegSrc_pc_4: rd_data = PC + 4;
-			RegSrc_shift: rd_data = shift_res;
+			2'b00: rd_data = alu_out;
+			2'b01: rd_data = PC + 4;
+			2'b10: rd_data = mem_rdata_D;
+		endcase
+		case(alu_regSrc)
+			2'b01: rd_data = {31'b0, alu_out[31]};
+			2'b10: rd_data = mul_res;
+			2'b11: rd_data = shift_res;
 		endcase
 	end
 
