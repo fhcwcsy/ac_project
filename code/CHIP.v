@@ -127,14 +127,15 @@ module CHIP(clk,
 
 		case ( ins[6:0] )
 
-			// ADD
-			OP_ADD: begin
+			// R-TYPE
+			OP_R_TYPE: begin
 				ctrl_aluOp = 2'b10;
 				regWrite = 1'b1;
 			end
 
-			// ADDI
-			OP_ADDI: begin
+			// I-TYPE
+			OP_I_TYPE: begin
+				ctrl_aluOp = 2'b11;
 				ctrl_aluSrc = 2'b01;
 				regWrite = 1'b1;
 			end
@@ -173,38 +174,6 @@ module CHIP(clk,
 				regWrite = 1'b1;
 			end
 
-			// MUL
-			OP_MUL: begin
-				ctrl_regSrc = 3'b010;
-				regWrite = 1'b1;
-			end
-
-			// SLLI
-			OP_SLLI: begin
-				ctrl_regSrc = 3'b101;
-				regWrite = 1'b1;
-			end
-			
-			// SLTI
-			OP_SLTI: begin
-				ctrl_regSrc = 3'b001;
-				ctrl_aluOp = 2'b01;
-				ctrl_aluSrc = 2'b01;
-				regWrite = 1'b1;
-			end
-
-			// SRAI
-			OP_SRAI: begin
-				ctrl_regSrc = 3'b101;
-				regWrite = 1'b1;
-			end
-
-			// SUB
-			OP_SUB: begin
-				ctrl_aluOp = 2'b10;
-				regWrite = 1'b1;
-			end
-
 			// SW
 			OP_SW: begin
 				ctrl_mem_wen_D = 1'b1;
@@ -235,6 +204,7 @@ module CHIP(clk,
 		// multiplier: pause
 		alu_input = 3'b010;
 		ctrl_mulValid = 1'b0;
+		alu_regSrc = 2'b00;
 
 		case ( ctrl_aluOp )
 
@@ -254,7 +224,26 @@ module CHIP(clk,
 					7'b0100000: alu_input = 3'b110;
 
 				endcase
+			end
 
+			// I type
+			2'b11: begin
+				case ( ins[14:12] )
+					// SLLI
+					3'b001: alu_regSrc = 2'b11;
+
+					// SRAI
+					3'b101: alu_regSrc = 2'b11;
+
+					// SLTI
+					3'b010: begin
+						alu_regSrc = 2'b01;
+						alu_input = 3'110;
+					end
+
+					// ADDI
+					// default values
+				endcase
 			end
 		endcase
 	end
