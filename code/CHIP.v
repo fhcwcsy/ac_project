@@ -104,7 +104,7 @@ module CHIP(clk,
     wire [31:0]     pc_jump;
 	wire			pc_jump_sel;
 
-    assign pc_jump = pc + {immGen_res[30:0], 1'b0};
+    assign pc_jump = pc + immGen_res;
 	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero )
     assign PC_nxt = ctrl_jalr ? alu_res : ( pc_jump_sel ? pc_jump : ( mul_done ? PC : PC + 32'd4 )  );
 
@@ -209,6 +209,7 @@ module CHIP(clk,
     // Todo: ALU
 	assign alu_A = ctrl_aluSrc[1] ? PC : rs1_data;
 	assign alu_B = ctrl_aluSrc[0] ? immGen_res : rs2_data;
+	
 
     // Todo: Shift
 	wire [4:0] shift_amt;
