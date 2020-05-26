@@ -133,7 +133,7 @@ module Final_tb;
         $readmemh (`MEM_DATA, mem_data.mem); // initialize data in mem_D
         $readmemh (`MEM_DATA_ANS, mem_data_ans); // initialize data in mem_D
         
-    end
+    end	
 
     initial begin
         #(`CYCLE*`END_CYCLE)
