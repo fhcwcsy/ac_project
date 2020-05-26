@@ -1,2 +1,5 @@
 *INCA_libs/
 *.log
+*.fsdb
+*novas*
+*nWave*
