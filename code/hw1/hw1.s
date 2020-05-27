@@ -15,7 +15,7 @@ FUNCTION:
   sw a0, 0(sp)
 
   # call T(n/2)
-  srli a0, a0, 1
+  srai a0, a0, 1
   jal ra, FUNCTION
 
   # restore variables
