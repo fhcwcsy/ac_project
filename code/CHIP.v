@@ -80,7 +80,7 @@ module CHIP(clk,
     reg [31:0]     alu_out;
     wire            alu_zero;
 	reg [2:0]		alu_input;
-	reg [1:0]		alu_regSrc;
+	reg [31:0]		alu_regSrc;
 
     // Shift
 	wire [31:0]		shift_res;
@@ -107,13 +107,9 @@ module CHIP(clk,
     assign PC_nxt = ctrl_jalr ? alu_out : ( pc_jump_sel ? pc_jump : ( mul_done ? PC + 32'd4 : PC )  );
 
     // Control Unit
-
-	localparam	RegSrc_ALU =	3'b000;
-	localparam	RegSrc_Sign =	3'b001;
-	localparam	RegSrc_mul =	3'b010;
-	localparam	RegSrc_rdata_D = 3'b011;
-	localparam	RegSrc_pc_4 =	3'b100;
-	localparam	RegSrc_shift =	3'b101;
+	localparam RegSrc_ALU = 2'b00;
+	localparam RegSrc_PC_4 = 2'b01;
+	localparam RegSrc_Mem = 2'b10;
 
     always @(*) begin
 		ctrl_mem_wen_D = 1'b0;
@@ -156,7 +152,7 @@ module CHIP(clk,
 			OP_JAL: begin
 				ctrl_jal = 1'b1;
 				regWrite = 1'b1;
-				ctrl_regSrc = RegSrc_pc_4;
+				ctrl_regSrc = RegSrc_PC_4;	// debug
 			end
 
 			// JALR
@@ -164,12 +160,12 @@ module CHIP(clk,
 				ctrl_aluSrc = 2'b01;
 				ctrl_jalr = 1'b1;
 				regWrite = 1'b1;
-				ctrl_regSrc = RegSrc_pc_4;
+				ctrl_regSrc = RegSrc_PC_4;	// debug
 			end
 
 			// LW
 			OP_LW: begin
-				ctrl_regSrc = 3'b011;
+				ctrl_regSrc = RegSrc_Mem;
 				ctrl_aluSrc = 2'b01;
 				regWrite = 1'b1;
 			end
@@ -191,7 +187,7 @@ module CHIP(clk,
 			OP_JAL:		immGen_res = { {11{ins[31]}}, ins[31], ins[19:12], ins[20], ins[30:21], 1'b0};
 			OP_SW:		immGen_res = { {20{ins[31]}}, ins[31:25], ins[11:7] };
 			OP_BEQ:		immGen_res = { {19{ins[31]}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
-			OP_I_TYPE, OP_JALR: immGen_res = { {20{ins[31]}}, ins[31:20] };
+			OP_I_TYPE, OP_JALR, OP_LW: immGen_res = { {20{ins[31]}}, ins[31:20] };
 			default:	immGen_res = 32'b0;
 		endcase
     end
@@ -204,7 +200,7 @@ module CHIP(clk,
 		// multiplier: pause
 		alu_input = 3'b010;
 		ctrl_mulValid = 1'b0;
-		alu_regSrc = 2'b00;
+		alu_regSrc = alu_out;
 
 		case ( ctrl_aluOp )
 
@@ -218,7 +214,10 @@ module CHIP(clk,
 					// Addition: defined in default values
 
 					// Multiplication
-					7'b0000001: ctrl_mulValid = 1'b1;
+					7'b0000001: begin
+						ctrl_mulValid = 1'b1;
+						alu_regSrc = mul_res;				// debug
+					end
 
 					// Subtraction
 					7'b0100000: alu_input = 3'b110;
@@ -229,15 +228,12 @@ module CHIP(clk,
 			// I type
 			2'b11: begin
 				case ( ins[14:12] )
-					// SLLI
-					3'b001: alu_regSrc = 2'b11;
-
-					// SRAI
-					3'b101: alu_regSrc = 2'b11;
+					// SLLI, SRAI
+					3'b001, 3'b101: alu_regSrc = shift_res; 
 
 					// SLTI
 					3'b010: begin
-						alu_regSrc = 2'b01;
+						alu_regSrc = {31'b0, alu_out[31]};
 						alu_input = 3'b110;
 					end
 
@@ -300,14 +296,9 @@ module CHIP(clk,
 	always @(*) begin
 		case(ctrl_regSrc)
 			default: rd_data = 32'b0;
-			2'b00: rd_data = alu_out;
-			2'b01: rd_data = PC + 4;
-			2'b10: rd_data = mem_rdata_D;
-		endcase
-		case(alu_regSrc)
-			2'b01: rd_data = {31'b0, alu_out[31]};
-			2'b10: rd_data = mul_res;
-			2'b11: rd_data = shift_res;
+			RegSrc_ALU: rd_data = alu_regSrc;
+			RegSrc_PC_4: rd_data = PC + 4;
+			RegSrc_Mem: rd_data = mem_rdata_D;
 		endcase
 	end
 
@@ -394,7 +385,7 @@ module multDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
 
     // Todo 5: wire assignments
     assign out = (state_r == S_DONE) ? shreg_r : 64'b0;
-    assign ready = (state_r == S_MULT || state_r == S_DIVI) ? 1'b0 : 1'b1;
+    assign ready = ( valid && state_r != S_DONE ) ? 1'b0 : 1'b1;
     
     // Combinational always block
     // State machine & counter
