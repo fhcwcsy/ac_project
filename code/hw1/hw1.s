@@ -40,8 +40,8 @@ __start:                     #
     la   t0, n               #
     lw   x10, 0(t0)          #
     jal  x1,FUNCTION         #
-    la   t0, n               #
-    sw   x10, 4(t0)          #
+    la   a0, n               #
+    sw   t0, 4(a0)          #
     addi a0,x0,10            #
     ecall                    #
 ##############################
