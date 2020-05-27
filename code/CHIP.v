@@ -26,11 +26,11 @@ module CHIP(clk,
     // Exception: You may change wire to reg //
     reg    [31:0] PC          ;              //
     wire   [31:0] PC_nxt      ;              //
-    wire          regWrite    ;              //
+    reg          regWrite    ;              //
     wire   [ 4:0] rs1, rs2, rd;              //
     wire   [31:0] rs1_data    ;              //
     wire   [31:0] rs2_data    ;              //
-    wire   [31:0] rd_data     ;              //
+    reg   [31:0] rd_data     ;              //
     //---------------------------------------//
 
     //---------------------------------------//
@@ -49,15 +49,10 @@ module CHIP(clk,
 
 	// ===== params =====
 	localparam OP_LW = 		7'b0000011;
-	localparam OP_ADDI =	7'b0010011;
-	localparam OP_SLTI = 	7'b0010011;
-	localparam OP_SLLI = 	7'b0010011;
-	localparam OP_SRAI = 	7'b0010011;
+	localparam OP_I_TYPE = 	7'b0010011;
 	localparam OP_AUIPC =	7'b0010111;
 	localparam OP_SW =		7'b0100011;
-	localparam OP_ADD =		7'b0110011;
-	localparam OP_SUB =		7'b0110011;
-	localparam OP_MUL =		7'b0110011;
+	localparam OP_R_TYPE =	7'b0110011;
 	localparam OP_BEQ =		7'b1100011;
 	localparam OP_JALR =	7'b1100111;
 	localparam OP_JAL =		7'b1101111;
@@ -70,23 +65,25 @@ module CHIP(clk,
     // pc
 
     // control unit
-    wire 			ctrl_beq, ctrl_jal, ctrl_jalr;	// for pc nxt, set the 1 for the according instruction
-	wire [2:0]		ctrl_regSrc;	// reg write back (there're six sources)
-	wire [1:0]		ctrl_aluOp;		//
-	wire [1:0]		ctrl_aluSrc;	// for input A and B, 0: rs_data, 1: special case
-	wire 			ctrl_mulValid;
+    reg 			ctrl_beq, ctrl_jal, ctrl_jalr;	// for pc nxt, set the 1 for the according instruction
+	reg [1:0]		ctrl_regSrc;	// reg write back (there're six sources)
+	reg [1:0]		ctrl_aluOp;		//
+	reg [1:0]		ctrl_aluSrc;	// for input A and B, 0: rs_data, 1: special case
+	reg 			ctrl_mulValid;
+	reg			ctrl_mem_wen_D;
 
     // ImmGen
-    wire [31:0]     immGen_res;     // not shifted for pc jump (in current design)
+    reg [31:0]     immGen_res;     // not shifted for pc jump (in current design)
 
     // ALU
 	wire [31:0]		alu_A, alu_B;
-    wire [31:0]     alu_res;
+    reg [31:0]     alu_out;
     wire            alu_zero;
-	wire [2:0]		alu_input;
+	reg [2:0]		alu_input;
+	reg [1:0]		alu_regSrc;
 
     // Shift
-	wire [31:0]		shift_res
+	wire [31:0]		shift_res;
 
     // MulDiv
     wire [31:0]     mul_res;
@@ -95,9 +92,9 @@ module CHIP(clk,
 
     // ===== output assignments =======
     assign mem_addr_I = PC;
-	assign mem_addr_D = alu_res;
+	assign mem_addr_D = alu_out;
 	assign mem_wdata_D = rs2_data;
-	// assign mem_wen_D =
+	assign mem_wen_D = ctrl_mem_wen_D;
 	// ================================
     
 
@@ -105,13 +102,21 @@ module CHIP(clk,
     wire [31:0]     pc_jump;
 	wire			pc_jump_sel;
 
-    assign pc_jump = pc + immGen_res;
-	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero )
-    assign PC_nxt = ctrl_jalr ? alu_res : ( pc_jump_sel ? pc_jump : ( mul_done ? PC : PC + 32'd4 )  );
+    assign pc_jump = PC + immGen_res;
+	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero );
+    assign PC_nxt = ctrl_jalr ? alu_out : ( pc_jump_sel ? pc_jump : ( mul_done ? PC + 32'd4 : PC )  );
 
     // Control Unit
+
+	localparam	RegSrc_ALU =	3'b000;
+	localparam	RegSrc_Sign =	3'b001;
+	localparam	RegSrc_mul =	3'b010;
+	localparam	RegSrc_rdata_D = 3'b011;
+	localparam	RegSrc_pc_4 =	3'b100;
+	localparam	RegSrc_shift =	3'b101;
+
     always @(*) begin
-		mem_wen_D = 1'b0;
+		ctrl_mem_wen_D = 1'b0;
 		ctrl_regSrc = 3'b000;
 		ctrl_aluOp = 2'b00;
 		ctrl_aluSrc = 2'b00;
@@ -122,14 +127,15 @@ module CHIP(clk,
 
 		case ( ins[6:0] )
 
-			// ADD
-			OP_ADD: begin
+			// R-TYPE
+			OP_R_TYPE: begin
 				ctrl_aluOp = 2'b10;
 				regWrite = 1'b1;
 			end
 
-			// ADDI
-			OP_ADDI: begin
+			// I-TYPE
+			OP_I_TYPE: begin
+				ctrl_aluOp = 2'b11;
 				ctrl_aluSrc = 2'b01;
 				regWrite = 1'b1;
 			end
@@ -147,12 +153,18 @@ module CHIP(clk,
 			end
 
 			// JAL
-			OP_JAL: ctrl_jal = 1'b1;
+			OP_JAL: begin
+				ctrl_jal = 1'b1;
+				regWrite = 1'b1;
+				ctrl_regSrc = RegSrc_pc_4;
+			end
 
 			// JALR
 			OP_JALR: begin
 				ctrl_aluSrc = 2'b01;
 				ctrl_jalr = 1'b1;
+				regWrite = 1'b1;
+				ctrl_regSrc = RegSrc_pc_4;
 			end
 
 			// LW
@@ -162,41 +174,9 @@ module CHIP(clk,
 				regWrite = 1'b1;
 			end
 
-			// MUL
-			OP_MUL: begin
-				ctrl_regSrc = 3'b010;
-				regWrite = 1'b1;
-			end
-
-			// SLLI
-			OP_SLLI: begin
-				ctrl_regSrc = 3'b101;
-				regWrite = 1'b1;
-			end
-			
-			// SLTI
-			OP_SLTI: begin
-				ctrl_regSrc = 3'b001;
-				ctrl_aluOp = 2'b01;
-				ctrl_aluSrc = 2'b01;
-				regWrite = 1'b1;
-			end
-
-			// SRAI
-			OP_SRAI: begin
-				ctrl_regSrc = 3'b101;
-				regWrite = 1'b1;
-			end
-
-			// SUB
-			OP_SUB: begin
-				ctrl_aluOp = 2'b10;
-				regWrite = 1'b1;
-			end
-
 			// SW
 			OP_SW: begin
-				mem_wen_D = 1'b1;
+				ctrl_mem_wen_D = 1'b1;
 				ctrl_aluSrc = 2'b01;
 			end
 
@@ -210,22 +190,23 @@ module CHIP(clk,
 			OP_AUIPC:	immGen_res = {ins[31:12], 12'b0};
 			OP_JAL:		immGen_res = { {11{ins[31]}}, ins[31], ins[19:12], ins[20], ins[30:21], 1'b0};
 			OP_SW:		immGen_res = { {20{ins[31]}}, ins[31:25], ins[11:7] };
-			OP_BEQ:		immGen_res = { {19{ins[31}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
-			OP_ADDI, OP_SLTI, OP_LW, OP_JALR: immGen_res = { {20{ins[31]}}, ins[31:20] };
-			default:	immGen_res = '0;
+			OP_BEQ:		immGen_res = { {19{ins[31]}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
+			OP_I_TYPE, OP_JALR: immGen_res = { {20{ins[31]}}, ins[31:20] };
+			default:	immGen_res = 32'b0;
 		endcase
     end
 	
 	// ALU control
 	always @(*) begin
+
+		// Default: 
+		// ALU: addition
+		// multiplier: pause
+		alu_input = 3'b010;
+		ctrl_mulValid = 1'b0;
+		alu_regSrc = 2'b00;
+
 		case ( ctrl_aluOp )
-			
-			// Default: 
-			// ALU: addition
-			// multiplier: pause
-			
-			alu_input = 3'b010;
-			ctrl_mulValid = 1'b0;
 
 			// Always subtract
 			2'b01: alu_input = 3'b110;
@@ -243,7 +224,26 @@ module CHIP(clk,
 					7'b0100000: alu_input = 3'b110;
 
 				endcase
+			end
 
+			// I type
+			2'b11: begin
+				case ( ins[14:12] )
+					// SLLI
+					3'b001: alu_regSrc = 2'b11;
+
+					// SRAI
+					3'b101: alu_regSrc = 2'b11;
+
+					// SLTI
+					3'b010: begin
+						alu_regSrc = 2'b01;
+						alu_input = 3'b110;
+					end
+
+					// ADDI
+					// default values
+				endcase
 			end
 		endcase
 	end
@@ -253,6 +253,7 @@ module CHIP(clk,
 	// ALU input
 	assign alu_A = ctrl_aluSrc[1] ? PC : rs1_data;
 	assign alu_B = ctrl_aluSrc[0] ? immGen_res : rs2_data;
+	assign alu_zero = alu_out ? 0 : 1;
 	
 	// AlU output
 	always @(*) begin
@@ -262,11 +263,11 @@ module CHIP(clk,
 			3'b010: alu_out = alu_A + alu_B;
 
 			// Subtraction
-			3'b110: alu_out = alu_A + alu_B;
+			3'b110: alu_out = alu_A - alu_B;
 
 			// default output: 0
 			default:
-				alu_out = '0;
+				alu_out = 32'b0;
 
 		endcase
 	end
@@ -291,22 +292,22 @@ module CHIP(clk,
 		.out(mul_res)
 	);
 
-	// Todo: reg (write back)
-	localparam	RegSrc_ALU =	3'b000;
-	localparam	RegSrc_Sign =	3'b001;
-	localparam	RegSrc_mul =	3'b010;
-	localparam	RegSrc_rdata_D = 3'b011;
-	localparam	RegSrc_pc_4 =	3'b100;
-	localparam	RegSrc_shift =	3'b101;
+	// Todo: reg
+	assign rs1 = ins[19:15];
+	assign rs2 = ins[24:20];
+	assign rd = ins[11:7];
+
 	always @(*) begin
 		case(ctrl_regSrc)
-			default: rd_data = '0;
-			RegSrc_ALU: rd_data = alu_res;
-			RegSrc_Sign: rd_data = {31'b0, alu_res[31]};
-			RegSrc_mul: rd_data = mul_res;
-			RegSrc_rdata_D: rd_data = mem_rdata_D;
-			RegSrc_pc_4: rd_data = PC + 4;
-			RegSrc_shift: rd_data = shift_res;
+			default: rd_data = 32'b0;
+			2'b00: rd_data = alu_out;
+			2'b01: rd_data = PC + 4;
+			2'b10: rd_data = mem_rdata_D;
+		endcase
+		case(alu_regSrc)
+			2'b01: rd_data = {31'b0, alu_out[31]};
+			2'b10: rd_data = mul_res;
+			2'b11: rd_data = shift_res;
 		endcase
 	end
 
@@ -393,7 +394,7 @@ module multDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
 
     // Todo 5: wire assignments
     assign out = (state_r == S_DONE) ? shreg_r : 64'b0;
-    assign ready = (state_r == S_MULT || start_r == DIVI) ? 1'b0 : 1'b1;
+    assign ready = (state_r == S_MULT || state_r == S_DIVI) ? 1'b0 : 1'b1;
     
     // Combinational always block
     // State machine & counter
