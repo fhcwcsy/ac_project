@@ -191,7 +191,7 @@ module CHIP(clk,
 			OP_JAL:		immGen_res = { {11{ins[31]}}, ins[31], ins[19:12], ins[20], ins[30:21], 1'b0};
 			OP_SW:		immGen_res = { {20{ins[31]}}, ins[31:25], ins[11:7] };
 			OP_BEQ:		immGen_res = { {19{ins[31]}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
-			OP_ADDI, OP_SLTI, OP_LW, OP_JALR: immGen_res = { {20{ins[31]}}, ins[31:20] };
+			OP_I_TYPE, OP_JALR: immGen_res = { {20{ins[31]}}, ins[31:20] };
 			default:	immGen_res = 32'b0;
 		endcase
     end
@@ -238,7 +238,7 @@ module CHIP(clk,
 					// SLTI
 					3'b010: begin
 						alu_regSrc = 2'b01;
-						alu_input = 3'110;
+						alu_input = 3'b110;
 					end
 
 					// ADDI
