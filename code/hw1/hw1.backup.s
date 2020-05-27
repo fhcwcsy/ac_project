@@ -24,9 +24,9 @@ FUNCTION:
   addi sp, sp, 8
 
   # compute and return 4T(n/2)+2n
-  slli a0, a0, 2
+  slli t0, t0, 2
   slli t1, t1, 1
-  add a0, a0, t1
+  add t0, t0, t1
   jalr x0, 0(ra)
 
 F_base:
@@ -40,8 +40,8 @@ __start:                     #
     la   t0, n               #
     lw   x10, 0(t0)          #
     jal  x1,FUNCTION         #
-    la   t0, n               #
-    sw   x10, 4(t0)          #
+    la   a0, n               #
+    sw   t0, 4(a0)          #
     addi a0,x0,10            #
     ecall                    #
 ##############################
