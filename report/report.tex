@@ -34,7 +34,6 @@ more instructions. \\
 \label{sub:the_control_module}
 
 
-
 \indent The control module reads the \texttt{opcode}, and output 9 signals:
 \begin{itemize}
 	\item \texttt{Regwrite}: 1-bit signal.\texttt{1} if writing to register is 
@@ -80,19 +79,19 @@ The signals for each instructions are listed in table \ref{tab:control}.
 \begin{tabular}{@{}lllllll@{}}
 \toprule
 Intruction     & \texttt{opcode}           & \texttt{men\_wen\_D}  & \texttt{RegSrc}       & \texttt{ALUop}       & \texttt{ALUSrc}      & \texttt{Regwrite}   \\ \midrule
-\texttt{lw}    & \texttt{0000011} & \texttt{0} & \texttt{011} & \texttt{00} & \texttt{01} & \texttt{1} \\
-\texttt{addi}  & \texttt{0010011} & \texttt{X} & \texttt{X}   & \texttt{11} & \texttt{01} & \texttt{1} \\
-\texttt{slli}  & \texttt{0010011} & \texttt{X} & \texttt{X}   & \texttt{11} & \texttt{01} & \texttt{1} \\
-\texttt{slti}  & \texttt{0010011} & \texttt{X} & \texttt{X}   & \texttt{11} & \texttt{01} & \texttt{1} \\
-\texttt{srai}  & \texttt{0010011} & \texttt{X} & \texttt{X}   & \texttt{11} & \texttt{01} & \texttt{1} \\
-\texttt{auipc} & \texttt{0010111} & \texttt{X} & \texttt{000} & \texttt{00} & \texttt{11} & \texttt{1} \\
+\texttt{lw}    & \texttt{0000011} & \texttt{0} & \texttt{10} & \texttt{00} & \texttt{01} & \texttt{1} \\
+\texttt{addi}  & \texttt{0010011} & \texttt{0} & \texttt{00}   & \texttt{11} & \texttt{01} & \texttt{1} \\
+\texttt{slli}  & \texttt{0010011} & \texttt{0} & \texttt{00}   & \texttt{11} & \texttt{01} & \texttt{1} \\
+\texttt{slti}  & \texttt{0010011} & \texttt{0} & \texttt{00}   & \texttt{11} & \texttt{01} & \texttt{1} \\
+\texttt{srai}  & \texttt{0010011} & \texttt{0} & \texttt{00}   & \texttt{11} & \texttt{01} & \texttt{1} \\
+\texttt{auipc} & \texttt{0010111} & \texttt{0} & \texttt{00} & \texttt{00} & \texttt{11} & \texttt{1} \\
 \texttt{sw}    & \texttt{0100011} & \texttt{1} & \texttt{X}   & \texttt{00} & \texttt{01} & \texttt{0} \\
-\texttt{add}   & \texttt{0110011} & \texttt{X} & \texttt{X}   & \texttt{10} & \texttt{00} & \texttt{1} \\
-\texttt{sub}   & \texttt{0110011} & \texttt{X} & \texttt{X}   & \texttt{10} & \texttt{00} & \texttt{1} \\
-\texttt{mul}   & \texttt{0110011} & \texttt{X} & \texttt{X}   & \texttt{10} & \texttt{00} & \texttt{1} \\
-\texttt{beq}   & \texttt{1100011} & \texttt{X} & \texttt{X}   & \texttt{01} & \texttt{00} & \texttt{0} \\
-\texttt{jalr}  & \texttt{1100111} & \texttt{0} & \texttt{X}   & \texttt{00} & \texttt{01} & \texttt{1} \\
-\texttt{jal}   & \texttt{1101111} & \texttt{X} & \texttt{X}   & \texttt{X}  & \texttt{X}  & \texttt{1} \\
+\texttt{add}   & \texttt{0110011} & \texttt{0} & \texttt{00}   & \texttt{10} & \texttt{00} & \texttt{1} \\
+\texttt{sub}   & \texttt{0110011} & \texttt{0} & \texttt{00}   & \texttt{10} & \texttt{00} & \texttt{1} \\
+\texttt{mul}   & \texttt{0110011} & \texttt{0} & \texttt{00}   & \texttt{10} & \texttt{00} & \texttt{1} \\
+\texttt{beq}   & \texttt{1100011} & \texttt{0} & \texttt{X}   & \texttt{01} & \texttt{00} & \texttt{0} \\
+\texttt{jalr}  & \texttt{1100111} & \texttt{0} & \texttt{01}   & \texttt{00} & \texttt{01} & \texttt{1} \\
+\texttt{jal}   & \texttt{1101111} & \texttt{0} & \texttt{01}   & \texttt{X}  & \texttt{X}  & \texttt{1} \\
 DEFAULT        &                  & \texttt{0} & \texttt{000} & \texttt{00} & \texttt{00} & \texttt{0} \\ \bottomrule
 \end{tabular}
 \caption{Control signals of each instructions.}
@@ -120,16 +119,14 @@ as inputs (explained below in the \texttt{ALURegSrc} part), then output
 		two options. The advantage is that it can easily be modified to support 
 		more operatios such as \texttt{and}, \texttt{or}, etc.
 
-	\item \texttt{ALURegSrc}: 32-bit signal. Note that in our code, we have
-		absorbed the multiplexer in figure \ref{fig:design} that takes four inputs
-		(two from ALU results, one from multiplier and one from the shift register)
-		into the ALU control module to avoid redundant code and wires. 
-		\texttt{ALURegSrc} is the output of the multiplexer in figure \ref{fig:design}
-		and will be set to appropriate write back source according
-		to the instruction type (hinted by \texttt{ALUOp}, \texttt{funct3} and
-		\texttt{funct7}). For example, for R-type and I-type instructions, the
-		output will be the result from the ALU, while for shift instructions
-		the output will be from the shift register.
+
+    \item \texttt{ALUMUX}: Takes the results of ALU, Multiplier, and Shift Unit, and assign
+        the desired result to \texttt{ALURegSrc}. Note that we implement this unit
+        along with \texttt{ALUInput} and consider it a part of \texttt{ALUControl} 
+        since the output also depends on \texttt{ALUOp}, \texttt{funct3}, and \texttt{funct7}. 
+        
+    \item \texttt{ALURegSrc}: 32-bit data bus. The result from ALU, Multiplier, or Shift Unit to
+        \texttt{rd\_data} (including the sign bit for the instruction \texttt{STLI})
 
 	\item \texttt{MulValid}: 1-bit signal. \texttt{1} if the intruction is
 		\texttt{mul}, 0 otherwise. The details about multiplication will be described
@@ -151,6 +148,9 @@ are also frozen except the multiplication module. When the result is ready, the
 state is in \texttt{S\_DONE} and \texttt{done} is set back to 1, and PC goes 
 on to the next instruction.
 
+\section{Extra Instructions Datapath}
+
+    
 
 \section{Required Screenshots}%
 \label{sec:required_screenshots}
