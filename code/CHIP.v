@@ -73,7 +73,7 @@ module CHIP(clk,
 	reg			ctrl_mem_wen_D;
 
     // ImmGen
-    reg [31:0]     immGen_res;     // not shifted for pc jump (in current design)
+    reg [31:0]     immGen_out;     // not shifted for pc jump (in current design)
 
     // ALU
 	wire [31:0]		alu_A, alu_B;
@@ -83,10 +83,10 @@ module CHIP(clk,
 	reg [31:0]		alu_regSrc;
 
     // Shift
-	wire [31:0]		shift_res;
+	wire [31:0]		shift_out;
 
     // MulDiv
-    wire [31:0]     mul_res;
+    wire [31:0]     mul_out;
     wire            mul_done;
 
 
@@ -102,7 +102,7 @@ module CHIP(clk,
     wire [31:0]     pc_jump;
 	wire			pc_jump_sel;
 
-    assign pc_jump = PC + immGen_res;
+    assign pc_jump = PC + immGen_out;
 	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero );
     assign PC_nxt = ctrl_jalr ? alu_out : ( pc_jump_sel ? pc_jump : ( mul_done ? PC + 32'd4 : PC )  );
 
@@ -183,12 +183,12 @@ module CHIP(clk,
     // Todo: ImmGen
     always @(*) begin
 		case( ins[6:0] )
-			OP_AUIPC:	immGen_res = {ins[31:12], 12'b0};
-			OP_JAL:		immGen_res = { {11{ins[31]}}, ins[31], ins[19:12], ins[20], ins[30:21], 1'b0};
-			OP_SW:		immGen_res = { {20{ins[31]}}, ins[31:25], ins[11:7] };
-			OP_BEQ:		immGen_res = { {19{ins[31]}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
-			OP_I_TYPE, OP_JALR, OP_LW: immGen_res = { {20{ins[31]}}, ins[31:20] };
-			default:	immGen_res = 32'b0;
+			OP_AUIPC:	immGen_out = {ins[31:12], 12'b0};
+			OP_JAL:		immGen_out = { {11{ins[31]}}, ins[31], ins[19:12], ins[20], ins[30:21], 1'b0};
+			OP_SW:		immGen_out = { {20{ins[31]}}, ins[31:25], ins[11:7] };
+			OP_BEQ:		immGen_out = { {19{ins[31]}}, ins[31], ins[7], ins[30:25], ins[11:8], 1'b0 };
+			OP_I_TYPE, OP_JALR, OP_LW: immGen_out = { {20{ins[31]}}, ins[31:20] };
+			default:	immGen_out = 32'b0;
 		endcase
     end
 	
@@ -216,7 +216,7 @@ module CHIP(clk,
 					// Multiplication
 					7'b0000001: begin
 						ctrl_mulValid = 1'b1;
-						alu_regSrc = mul_res;				// debug
+						alu_regSrc = mul_out;				// debug
 					end
 
 					// Subtraction
@@ -229,7 +229,7 @@ module CHIP(clk,
 			2'b11: begin
 				case ( ins[14:12] )
 					// SLLI, SRAI
-					3'b001, 3'b101: alu_regSrc = shift_res; 
+					3'b001, 3'b101: alu_regSrc = shift_out; 
 
 					// SLTI
 					3'b010: begin
@@ -248,7 +248,7 @@ module CHIP(clk,
 
 	// ALU input
 	assign alu_A = ctrl_aluSrc[1] ? PC : rs1_data;
-	assign alu_B = ctrl_aluSrc[0] ? immGen_res : rs2_data;
+	assign alu_B = ctrl_aluSrc[0] ? immGen_out : rs2_data;
 	assign alu_zero = alu_out ? 0 : 1;
 	
 	// AlU output
@@ -274,7 +274,7 @@ module CHIP(clk,
 	assign shift_amt = ins[24:20];
 	wire [93:0] shift_tmp;
 	assign shift_tmp = { {31{rs1_data[31]}}, rs1_data, 31'b0 };
-	assign shift_res = ins[30] ? shift_tmp[(62+shift_amt) -: 32] : shift_tmp[(62-shift_amt) -: 32];
+	assign shift_out = ins[30] ? shift_tmp[(62+shift_amt) -: 32] : shift_tmp[(62-shift_amt) -: 32];
 
     // Todo: mul
 	multDiv mul(
@@ -285,7 +285,7 @@ module CHIP(clk,
 		.mode(1'b0),
 		.in_A(rs1_data),
 		.in_B(rs2_data),
-		.out(mul_res)
+		.out(mul_out)
 	);
 
 	// Todo: reg
