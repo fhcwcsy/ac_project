@@ -1,5 +1,3 @@
-// Your code
-
 module CHIP(clk,
             rst_n,
             // For mem_D
@@ -47,7 +45,11 @@ module CHIP(clk,
         .q2(rs2_data));                      //
     //---------------------------------------//
 
-	// ===== params =====
+	/************************************************************************
+	*                                Params                                *
+	************************************************************************/
+
+   /*========== OPCode ==========*/
 	localparam OP_LW = 		7'b0000011;
 	localparam OP_I_TYPE = 	7'b0010011;
 	localparam OP_AUIPC =	7'b0010111;
@@ -57,48 +59,44 @@ module CHIP(clk,
 	localparam OP_JALR =	7'b1100111;
 	localparam OP_JAL =		7'b1101111;
 
-    // ===== variables =========
+	/*========== RegSrc ==========*/
+	localparam RegSrc_ALU = 2'b00;
+	localparam RegSrc_PC_4 = 2'b01;
+	localparam RegSrc_Mem = 2'b10;
 
+	/************************************************************************
+	*                              Variables                               *
+	************************************************************************/
+   /*========== General ==========*/
 	wire [31:0] ins;
 	assign ins = mem_rdata_I;
 
-    // pc
-
-    // control unit
+	/*========== Control Unit ==========*/
     reg 			ctrl_beq, ctrl_jal, ctrl_jalr;	// for pc nxt, set the 1 for the according instruction
 	reg [1:0]		ctrl_regSrc;	// reg write back (there're six sources)
 	reg [1:0]		ctrl_aluOp;		//
 	reg [1:0]		ctrl_aluSrc;	// for input A and B, 0: rs_data, 1: special case
 	reg 			ctrl_mulValid;
-	reg			ctrl_mem_wen_D;
+	reg				ctrl_mem_wen_D;
 
-    // ImmGen
+	/*========== ImmGen ==========*/
     reg [31:0]     immGen_out;     // not shifted for pc jump (in current design)
 
-    // ALU
+	/*========== ALU ==========*/
 	wire [31:0]		alu_A, alu_B;
     reg [31:0]     alu_out;
     wire            alu_zero;
 	reg [2:0]		alu_input;
 	reg [31:0]		alu_regSrc;
 
-    // Shift
+	/*========== Shift Unit ==========*/
 	wire [31:0]		shift_out;
 
-    // MulDiv
+	/*========== MultDiv ==========*/
     wire [31:0]     mul_out;
     wire            mul_done;
 
-
-    // ===== output assignments =======
-    assign mem_addr_I = PC;
-	assign mem_addr_D = alu_out;
-	assign mem_wdata_D = rs2_data;
-	assign mem_wen_D = ctrl_mem_wen_D;
-	// ================================
-    
-
-    // Todo: PC logics
+	/*========== PC Logic ==========*/
     wire [31:0]     pc_jump;
 	wire			pc_jump_sel;
 
@@ -106,11 +104,20 @@ module CHIP(clk,
 	assign pc_jump_sel = ctrl_jal | ( ctrl_beq & alu_zero );
     assign PC_nxt = ctrl_jalr ? alu_out : ( pc_jump_sel ? pc_jump : ( mul_done ? PC + 32'd4 : PC )  );
 
-    // Control Unit
-	localparam RegSrc_ALU = 2'b00;
-	localparam RegSrc_PC_4 = 2'b01;
-	localparam RegSrc_Mem = 2'b10;
+	/************************************************************************
+	*                          Output Assignment                           *
+	************************************************************************/
+    assign mem_addr_I = PC;
+	assign mem_addr_D = alu_out;
+	assign mem_wdata_D = rs2_data;
+	assign mem_wen_D = ctrl_mem_wen_D;
 
+
+	/************************************************************************
+	*                        Combinational Circuits                        *
+	************************************************************************/
+
+   /*========== Control Unit ==========*/
     always @(*) begin
 		ctrl_mem_wen_D = 1'b0;
 		ctrl_regSrc = 3'b000;
@@ -180,7 +187,7 @@ module CHIP(clk,
         
     end
 
-    // Todo: ImmGen
+	/*========== ImmGen ==========*/
     always @(*) begin
 		case( ins[6:0] )
 			OP_AUIPC:	immGen_out = {ins[31:12], 12'b0};
@@ -192,7 +199,7 @@ module CHIP(clk,
 		endcase
     end
 	
-	// ALU control
+	/*========== ALU Control ==========*/
 	always @(*) begin
 
 		// Default: 
@@ -244,7 +251,8 @@ module CHIP(clk,
 		endcase
 	end
 
-	// ALU
+
+	/*========== ALU ==========*/
 
 	// ALU input
 	assign alu_A = ctrl_aluSrc[1] ? PC : rs1_data;
@@ -264,19 +272,18 @@ module CHIP(clk,
 			// default output: 0
 			default:
 				alu_out = 32'b0;
-
 		endcase
 	end
 	
 
-    // Todo: Shift
+	/*========== Shift Unit ==========*/
 	wire [4:0] shift_amt;
 	assign shift_amt = ins[24:20];
 	wire [93:0] shift_tmp;
 	assign shift_tmp = { {31{rs1_data[31]}}, rs1_data, 31'b0 };
 	assign shift_out = ins[30] ? shift_tmp[(62+shift_amt) -: 32] : shift_tmp[(62-shift_amt) -: 32];
 
-    // Todo: mul
+	/*========== MultDiv ==========*/
 	multDiv mul(
 		.clk(clk),
 		.rst_n(rst_n),
@@ -288,7 +295,7 @@ module CHIP(clk,
 		.out(mul_out)
 	);
 
-	// Todo: reg
+	/*========== Register File ==========*/
 	assign rs1 = ins[19:15];
 	assign rs2 = ins[24:20];
 	assign rd = ins[11:7];
@@ -302,20 +309,22 @@ module CHIP(clk,
 		endcase
 	end
 
-
-
-
+	/************************************************************************
+	*                        Sequential Assignment                         *
+	************************************************************************/
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             PC <= 32'h00010000; // Do not modify this value!!!
-            
         end
         else begin
             PC <= PC_nxt;
-            
         end
     end
 endmodule
+
+/*****************************************************************************
+*                             Module: reg_file                              *
+*****************************************************************************/
 
 module reg_file(clk, rst_n, wen, a1, a2, aw, d, q1, q2);
    
@@ -361,6 +370,9 @@ module reg_file(clk, rst_n, wen, a1, a2, aw, d, q1, q2);
     end
 endmodule
 
+/*****************************************************************************
+*                              Module: multDiv                              *
+*****************************************************************************/
 module multDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
 
     // Definition of ports
@@ -417,6 +429,7 @@ module multDiv(clk, rst_n, valid, ready, mode, in_A, in_B, out);
             S_DONE: alu_in_w = 0;
         endcase
     end
+
     // ALU output
     assign alu_out = (state_r == S_MULT) ? shreg_r[63:32] + alu_in_r : shreg_r[62:31] - alu_in_r;
     
