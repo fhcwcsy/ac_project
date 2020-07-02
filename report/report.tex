@@ -30,11 +30,11 @@ Our design is drawn in figure \ref{fig:design}, which is mostly identical to the
 design in the textbook, but a few modules, signals and wires are added to support
 more instructions. \\
 
-\subsection{The Control Module}%
-\label{sub:the_control_module}
+\subsection{The Control Unit}%
+\label{sub:the_control_unit}
 
 
-\indent The control module reads the \texttt{opcode}, and output 9 signals:
+\indent The control unit reads the \texttt{opcode}, and output 9 signals:
 \begin{itemize}
 	\item \texttt{Regwrite}: 1-bit signal.\texttt{1} if writing to register is 
 		required, \texttt{0} otherwise.
@@ -148,7 +148,37 @@ are also frozen except the multiplication module. When the result is ready, the
 state is in \texttt{S\_DONE} and \texttt{done} is set back to 1, and PC goes 
 on to the next instruction.
 
-\section{Extra Instructions Datapath}
+\section{Instruction Implementation/Datapath}
+
+The Implementation and datapath of some instructions. Some instructions are not mentioned
+since they are already included in the lectures or the section above (\texttt{mul}).
+
+\subsection{\texttt{AUIPC}}
+To perform the addition of \texttt{PC} and \texttt{imm}, We added a MUX and an extra bit to the 
+control signal \texttt{ALUSrc} so that the first operand can be either \texttt{rs1}
+or \texttt{PC}.
+
+\subsection{\texttt{JAL/JALR} }
+For \texttt{JAL} and \texttt{JALR}, the address of the next instruction \texttt{PC+4}
+have to be stored to \texttt{rd}. We included this feature in the control signal
+\texttt{RegSrc} so that \texttt{rd\_data} can select \texttt{PC+4} as source.\\
+For \texttt{JAL}, the target address (\texttt{PC+imm}) is calculated in the extra adder
+previously designed for \texttt{BEQ}, and will be selected by the control signal 
+\texttt{jal}.\\
+For \texttt{JALR} the target address is calculated in \texttt{ALU} and will be selected
+by the control signal \texttt{jalr}.
+
+\subsection{\texttt{SLLI/SRAI}}
+We added a \texttt{shift unit} to implement these instructions. It reads the parameters
+(shift amount, shift direction, \dots) from the 32-bit instruction directly, and performs
+the shift operation on \texttt{rs1\_data}. The result will be selected by 
+\texttt{ALUContol} and send to \texttt{ALURegSrc} when needed.
+
+\subsection{\texttt{SLTI}}
+When this instructions is read, \texttt{ALUControl} will use the MSB (sign-bit) of the 
+result of subtraction as \texttt{ALURegSrc}. For example, when \texttt{rs1} is less
+than \texttt{rs2}, the result of subtraction will be negative, so \texttt{32'b1} will 
+be sent to \texttt{rd\_data} through \texttt{ALURegSrc}.
 
     
 
